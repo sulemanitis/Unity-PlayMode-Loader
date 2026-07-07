@@ -1,0 +1,11 @@
+{
+  "name": "com.salugames.playmodeloader",
+  "version": "1.0.0",
+  "displayName": "Unity Play Mode Loader",
+  "description": "Automatically loads a designated startup scene when entering Play Mode and restores your previously opened scene setup when exiting Play Mode.",
+  "unity": "2021.3",
+  "license": "MIT",
+  "author": {
+    "name": "Suleman"
+  }
+}
