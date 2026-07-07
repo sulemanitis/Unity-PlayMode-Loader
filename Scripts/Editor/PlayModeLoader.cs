@@ -25,7 +25,7 @@ public static class PlayModeLoader
         {
             label = "Play Mode Loader",
 
-            guiHandler = _ =>
+            guiHandler = editorContext =>
             {
                 EditorGUILayout.LabelField("Play Mode Loader Settings", EditorStyles.boldLabel);
 
@@ -34,39 +34,41 @@ public static class PlayModeLoader
                 Settings.enabled = EditorGUILayout.Toggle("Enable Loader", Settings.enabled);
                 Settings.saveBeforePlay = EditorGUILayout.Toggle("Save Before Play", Settings.saveBeforePlay);
 
-                EditorGUILayout.BeginHorizontal();
-                Settings.loadingScenePath = EditorGUILayout.TextField("Loading Scene Path", Settings.loadingScenePath);
+                EditorBuildSettingsScene[] buildScenes = EditorBuildSettings.scenes;
 
-                if (GUILayout.Button("Select", GUILayout.Width(70)))
+                if (buildScenes == null || buildScenes.Length == 0)
                 {
-                    string selectedPath = EditorUtility.OpenFilePanel(
-                        "Select Loading Scene",
-                        Application.dataPath,
-                        "unity"
+                    EditorGUILayout.HelpBox(
+                        "No scenes found in Build Settings. Add scenes there first.",
+                        MessageType.Warning
                     );
-
-                    if (!string.IsNullOrEmpty(selectedPath))
-                    {
-                        Settings.loadingScenePath = AbsolutePathToAssetPath(selectedPath);
-                        Settings.SaveSettings();
-                    }
                 }
-
-                EditorGUILayout.EndHorizontal();
-
-                if (!string.IsNullOrEmpty(Settings.loadingScenePath))
+                else
                 {
-                    if (!File.Exists(Settings.loadingScenePath))
+                    string[] sceneNames = new string[buildScenes.Length];
+
+                    for (int i = 0; i < buildScenes.Length; i++)
+                    {
+                        string sceneName = Path.GetFileNameWithoutExtension(buildScenes[i].path);
+                        sceneNames[i] = $"{i}: {sceneName}";
+                    }
+
+                    int currentIndex = Mathf.Clamp(Settings.buildSceneIndex, 0, buildScenes.Length - 1);
+                    int selectedIndex = EditorGUILayout.Popup("Loading Scene", currentIndex, sceneNames);
+
+                    Settings.buildSceneIndex = selectedIndex;
+
+                    if (!buildScenes[selectedIndex].enabled)
                     {
                         EditorGUILayout.HelpBox(
-                            "Selected scene path is invalid or missing.",
-                            MessageType.Warning
+                            "Selected scene is disabled in Build Settings, but the loader will still use it in the editor.",
+                            MessageType.Info
                         );
                     }
                 }
 
                 EditorGUILayout.HelpBox(
-                    "This setting is stored per project in ProjectSettings/PlayModeLoaderSettings.asset.",
+                    "This setting is stored per project in ProjectSettings/PlayModeLoaderSettings.asset. Scene is referenced by Build Settings index, so renaming or moving the scene file is safe.",
                     MessageType.Info
                 );
 
@@ -83,7 +85,15 @@ public static class PlayModeLoader
         if (!Settings.enabled)
             return;
 
-        string loadingScenePath = Settings.loadingScenePath;
+        EditorBuildSettingsScene[] buildScenes = EditorBuildSettings.scenes;
+
+        if (buildScenes == null || buildScenes.Length == 0)
+            return;
+
+        if (Settings.buildSceneIndex < 0 || Settings.buildSceneIndex >= buildScenes.Length)
+            return;
+
+        string loadingScenePath = buildScenes[Settings.buildSceneIndex].path;
 
         if (string.IsNullOrEmpty(loadingScenePath))
             return;
@@ -166,36 +176,6 @@ public static class PlayModeLoader
         }
     }
 
-    private static string AbsolutePathToAssetPath(string absolutePath)
-    {
-        absolutePath = absolutePath.Replace("\\", "/");
-
-        string dataPath = Application.dataPath.Replace("\\", "/");
-
-        if (absolutePath.StartsWith(dataPath))
-            return "Assets" + absolutePath.Substring(dataPath.Length);
-
-        return absolutePath;
-    }
-
-    [MenuItem("Edit/Play Mode Loader/Select Loading Scene")]
-    private static void SelectSceneMenu()
-    {
-        string selectedPath = EditorUtility.OpenFilePanel(
-            "Select Loading Scene",
-            Application.dataPath,
-            "unity"
-        );
-
-        if (string.IsNullOrEmpty(selectedPath))
-            return;
-
-        Settings.loadingScenePath = AbsolutePathToAssetPath(selectedPath);
-        Settings.SaveSettings();
-
-        Debug.Log($"Play Mode Loader: Loading scene set to {Settings.loadingScenePath}");
-    }
-
     [MenuItem("Edit/Play Mode Loader/Open Project Settings")]
     private static void OpenProjectSettings()
     {
@@ -208,7 +188,7 @@ public class PlayModeLoaderSettings : ScriptableSingleton<PlayModeLoaderSettings
 {
     public bool enabled = true;
     public bool saveBeforePlay = true;
-    public string loadingScenePath = "";
+    public int buildSceneIndex = 0;
 
     public List<string> previousScenePaths = new();
 
