@@ -35,6 +35,7 @@ This tool solves that problem by automatically:
 * Restores previously opened scenes after Play Mode.
 * Supports multiple open scenes.
 * Optional "Save Before Play".
+* Startup scene is selected from Build Settings, so renaming or moving the scene file never breaks the reference.
 * Project-specific settings.
 * No runtime dependencies.
 * No packages required.
@@ -64,21 +65,24 @@ Add this repository as a Git submodule inside your project's Editor folder.
 
 ## Setup
 
-Open:
+1. Add your startup scene to File → Build Settings (it must appear in the Scenes In Build list).
+2. Open:
 
 Edit → Project Settings → Play Mode Loader
 
-Configure:
+3. Configure:
 
 * Enable Loader
 * Save Before Play
-* Loading Scene Path
+* Loading Scene (a dropdown listing every scene currently in Build Settings)
 
 Select the scene that should always be loaded before entering Play Mode.
 
 Example:
 
 Assets/Scenes/Loading.unity
+
+Since the loader references scenes by their Build Settings index rather than a file path, you can freely rename or move the scene afterward without needing to reselect it. If you reorder the Scenes In Build list, double check the dropdown still points at the scene you expect.
 
 ---
 
@@ -95,21 +99,15 @@ When you press Play:
 Level_05
 LightingScene
 UIScene
-
 ↓
-
 Loading
-
 ↓
-
 Play Mode
 
 When you stop Play Mode:
 
 Loading
-
 ↓
-
 Level_05
 LightingScene
 UIScene
@@ -144,6 +142,7 @@ Assets/Scenes/MainMenu.unity
 
 * Unity 2021+
 * Editor-only
+* Startup scene must be added to File → Build Settings
 
 ---
 
