@@ -10,14 +10,53 @@ using UnityEngine.SceneManagement;
 [InitializeOnLoad]
 public static class PlayModeLoader
 {
-    private static PlayModeLoaderSettings Settings => PlayModeLoaderSettings.instance;
+    private static readonly string settingsFilePath = Path.Combine(
+        Directory.GetParent(Application.dataPath).FullName,
+        "ProjectSettings",
+        "PlayModeLoaderSettings.json"
+    );
+
+    private static PlayModeLoaderSettings cachedSettings;
+
+    private static PlayModeLoaderSettings Settings
+    {
+        get
+        {
+            if (cachedSettings == null)
+            {
+                cachedSettings = LoadSettings();
+            }
+
+            return cachedSettings;
+        }
+    }
 
     static PlayModeLoader()
     {
         EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
         EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+    }
 
-        Debug.Log($"PlayModeLoader startup, sceneGuid loaded as: '{Settings.sceneGuid}'");
+    private static PlayModeLoaderSettings LoadSettings()
+    {
+        if (File.Exists(settingsFilePath))
+        {
+            string json = File.ReadAllText(settingsFilePath);
+            PlayModeLoaderSettings loaded = JsonUtility.FromJson<PlayModeLoaderSettings>(json);
+
+            if (loaded != null)
+            {
+                return loaded;
+            }
+        }
+
+        return new PlayModeLoaderSettings();
+    }
+
+    private static void SaveSettings()
+    {
+        string json = JsonUtility.ToJson(Settings, true);
+        File.WriteAllText(settingsFilePath, json);
     }
 
     [SettingsProvider]
@@ -67,7 +106,7 @@ public static class PlayModeLoader
                     if (selectedGuid != Settings.sceneGuid)
                     {
                         Settings.sceneGuid = selectedGuid;
-                        Settings.SaveSettings();
+                        SaveSettings();
                     }
 
                     if (!buildScenes[selectedIndex].enabled)
@@ -80,13 +119,13 @@ public static class PlayModeLoader
                 }
 
                 EditorGUILayout.HelpBox(
-                    "This setting is stored per project in ProjectSettings/PlayModeLoaderSettings.asset. Scene is referenced by its GUID, so renaming, moving, or reordering the scene in Build Settings is safe.",
+                    "This setting is stored per project in ProjectSettings/PlayModeLoaderSettings.json. Scene is referenced by its GUID, so renaming, moving, or reordering the scene in Build Settings is safe.",
                     MessageType.Info
                 );
 
                 if (EditorGUI.EndChangeCheck())
                 {
-                    Settings.SaveSettings();
+                    SaveSettings();
                 }
             }
         };
@@ -162,7 +201,7 @@ public static class PlayModeLoader
             Settings.previousScenePaths.Add(scene.path);
         }
 
-        Settings.SaveSettings();
+        SaveSettings();
     }
 
     private static void RestorePreviousScenes()
@@ -204,24 +243,13 @@ public static class PlayModeLoader
     }
 }
 
-[FilePath("ProjectSettings/PlayModeLoaderSettings.asset", FilePathAttribute.Location.ProjectFolder)]
-public class PlayModeLoaderSettings : ScriptableSingleton<PlayModeLoaderSettings>
+[System.Serializable]
+public class PlayModeLoaderSettings
 {
     public bool enabled = true;
     public bool saveBeforePlay = true;
     public string sceneGuid = "";
-
     public List<string> previousScenePaths = new();
-
-    private void OnEnable()
-    {
-        Debug.Log($"PlayModeLoaderSettings.OnEnable, sceneGuid: '{sceneGuid}'");
-    }
-
-    public void SaveSettings()
-    {
-        Save(true);
-    }
 }
 
 #endif
