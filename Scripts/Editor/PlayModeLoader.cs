@@ -17,8 +17,7 @@ public static class PlayModeLoader
         EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
         EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
 
-        // Force the settings asset to load from disk right away.
-        var loadedSettings = Settings;
+        Debug.Log($"PlayModeLoader startup, sceneGuid loaded as: '{Settings.sceneGuid}'");
     }
 
     [SettingsProvider]
@@ -49,19 +48,25 @@ public static class PlayModeLoader
                 else
                 {
                     string[] sceneNames = new string[buildScenes.Length];
+                    int currentIndex = 0;
 
                     for (int i = 0; i < buildScenes.Length; i++)
                     {
                         string sceneName = Path.GetFileNameWithoutExtension(buildScenes[i].path);
                         sceneNames[i] = $"{i}: {sceneName}";
+
+                        if (buildScenes[i].guid.ToString() == Settings.sceneGuid)
+                        {
+                            currentIndex = i;
+                        }
                     }
 
-                    int currentIndex = Mathf.Clamp(Settings.buildSceneIndex, 0, buildScenes.Length - 1);
                     int selectedIndex = EditorGUILayout.Popup("Loading Scene", currentIndex, sceneNames);
+                    string selectedGuid = buildScenes[selectedIndex].guid.ToString();
 
-                    if (selectedIndex != Settings.buildSceneIndex)
+                    if (selectedGuid != Settings.sceneGuid)
                     {
-                        Settings.buildSceneIndex = selectedIndex;
+                        Settings.sceneGuid = selectedGuid;
                         Settings.SaveSettings();
                     }
 
@@ -75,7 +80,7 @@ public static class PlayModeLoader
                 }
 
                 EditorGUILayout.HelpBox(
-                    "This setting is stored per project in ProjectSettings/PlayModeLoaderSettings.asset. Scene is referenced by Build Settings index, so renaming or moving the scene file is safe.",
+                    "This setting is stored per project in ProjectSettings/PlayModeLoaderSettings.asset. Scene is referenced by its GUID, so renaming, moving, or reordering the scene in Build Settings is safe.",
                     MessageType.Info
                 );
 
@@ -92,15 +97,24 @@ public static class PlayModeLoader
         if (!Settings.enabled)
             return;
 
+        if (string.IsNullOrEmpty(Settings.sceneGuid))
+            return;
+
         EditorBuildSettingsScene[] buildScenes = EditorBuildSettings.scenes;
 
         if (buildScenes == null || buildScenes.Length == 0)
             return;
 
-        if (Settings.buildSceneIndex < 0 || Settings.buildSceneIndex >= buildScenes.Length)
-            return;
+        string loadingScenePath = null;
 
-        string loadingScenePath = buildScenes[Settings.buildSceneIndex].path;
+        for (int i = 0; i < buildScenes.Length; i++)
+        {
+            if (buildScenes[i].guid.ToString() == Settings.sceneGuid)
+            {
+                loadingScenePath = buildScenes[i].path;
+                break;
+            }
+        }
 
         if (string.IsNullOrEmpty(loadingScenePath))
             return;
@@ -195,9 +209,14 @@ public class PlayModeLoaderSettings : ScriptableSingleton<PlayModeLoaderSettings
 {
     public bool enabled = true;
     public bool saveBeforePlay = true;
-    public int buildSceneIndex = 0;
+    public string sceneGuid = "";
 
     public List<string> previousScenePaths = new();
+
+    private void OnEnable()
+    {
+        Debug.Log($"PlayModeLoaderSettings.OnEnable, sceneGuid: '{sceneGuid}'");
+    }
 
     public void SaveSettings()
     {
