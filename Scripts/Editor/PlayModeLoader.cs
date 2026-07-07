@@ -16,6 +16,9 @@ public static class PlayModeLoader
     {
         EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
         EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+
+        // Force the settings asset to load from disk right away.
+        var loadedSettings = Settings;
     }
 
     [SettingsProvider]
@@ -56,7 +59,11 @@ public static class PlayModeLoader
                     int currentIndex = Mathf.Clamp(Settings.buildSceneIndex, 0, buildScenes.Length - 1);
                     int selectedIndex = EditorGUILayout.Popup("Loading Scene", currentIndex, sceneNames);
 
-                    Settings.buildSceneIndex = selectedIndex;
+                    if (selectedIndex != Settings.buildSceneIndex)
+                    {
+                        Settings.buildSceneIndex = selectedIndex;
+                        Settings.SaveSettings();
+                    }
 
                     if (!buildScenes[selectedIndex].enabled)
                     {
